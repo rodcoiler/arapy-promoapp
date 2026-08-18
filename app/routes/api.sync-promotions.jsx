@@ -132,7 +132,34 @@ export const action = async ({ request }) => {
   }
 
   // 2. Create or Update Automatic App Discount to run our Shopify Function
-  const functionId = process.env.SHOPIFY_PROMOBOX_DISCOUNT_ID;
+  let functionId = process.env.SHOPIFY_PROMOBOX_DISCOUNT_ID;
+  if (!functionId) {
+    try {
+      const funcRes = await admin.graphql(`
+        query {
+          shopifyFunctions(first: 10) {
+            edges {
+              node {
+                id
+                title
+              }
+            }
+          }
+        }
+      `);
+      const funcData = await funcRes.json();
+      const myFunc = funcData.data?.shopifyFunctions?.edges.find(e => 
+        e.node.title.includes("promobox-discount") || e.node.title.includes("PromoBox") || e.node.title === "t:name"
+      );
+      if (myFunc) {
+        functionId = myFunc.node.id;
+        console.log("Dynamically resolved Function ID:", functionId);
+      }
+    } catch (error) {
+      console.error("Error fetching shopifyFunctions:", error);
+    }
+  }
+
   if (functionId) {
     try {
       // Check if the discount already exists
