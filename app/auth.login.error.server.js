@@ -5,10 +5,10 @@ export function loginErrorMessage(request) {
   const error = url.searchParams.get("error");
 
   switch (error) {
-    case LoginErrorType.ShopifyKilledAccess:
-      return { shop: "Acceso denegado por Shopify" };
-    case LoginErrorType.ActiveSessionNotFound:
-      return { shop: "Sesión activa no encontrada" };
+    case LoginErrorType.MissingShop:
+      return { shop: "La URL de la tienda es requerida" };
+    case LoginErrorType.InvalidShop:
+      return { shop: "URL de tienda no válida. Usa el formato: tu-tienda.myshopify.com" };
     default:
       return {};
   }
