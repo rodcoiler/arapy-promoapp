@@ -98,6 +98,10 @@ export const action = async ({ request }) => {
   // 1. Store promotions as shop metafield (used by Cart Transform Function)
   let metafieldData = null;
   try {
+    const shopQueryRes = await admin.graphql(`query { shop { id } }`);
+    const shopQueryData = await shopQueryRes.json();
+    const shopGid = shopQueryData.data.shop.id;
+
     const metafieldResponse = await admin.graphql(`
       mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
         metafieldsSet(metafields: $metafields) {
@@ -118,7 +122,7 @@ export const action = async ({ request }) => {
           {
             namespace: "promobox",
             key: "promotions",
-            ownerId: `gid://shopify/Shop/${shop.split(".")[0]}`,
+            ownerId: shopGid,
             type: "json",
             value: promotionsJson,
           },
@@ -127,6 +131,9 @@ export const action = async ({ request }) => {
     });
 
     metafieldData = await metafieldResponse.json();
+    if (metafieldData.data?.metafieldsSet?.userErrors?.length > 0) {
+      console.error("Metafield user errors:", metafieldData.data.metafieldsSet.userErrors);
+    }
   } catch (error) {
     console.error("Error setting metafield:", error);
   }
@@ -162,64 +169,35 @@ export const action = async ({ request }) => {
 
   if (functionId) {
     try {
-      // Check if the discount already exists
-      const discountsRes = await admin.graphql(`
-        query {
-          discountNodes(first: 10) {
-            edges {
-              node {
-                id
-                discount {
-                  ... on DiscountAutomaticApp {
-                    title
-                    appDiscountType {
-                      functionId
-                    }
-                  }
-                }
-              }
+      // Blindly create the discount. If it already exists, it will just return a UserError which we ignore.
+      const createDiscountRes = await admin.graphql(`
+        mutation discountAutomaticAppCreate($automaticAppDiscount: DiscountAutomaticAppInput!) {
+          discountAutomaticAppCreate(automaticAppDiscount: $automaticAppDiscount) {
+            automaticAppDiscount {
+              discountId
+            }
+            userErrors {
+              field
+              message
             }
           }
         }
-      `);
-      const discountsData = await discountsRes.json();
-      const existingDiscounts = discountsData?.data?.discountNodes?.edges || [];
+      `, {
+        variables: {
+          automaticAppDiscount: {
+            title: "PromoBox NxM Discount",
+            functionId: functionId,
+            startsAt: new Date().toISOString(),
+          }
+        }
+      });
       
-      let discountExists = false;
-      for (const edge of existingDiscounts) {
-        if (edge.node.discount?.appDiscountType?.functionId === functionId) {
-          discountExists = true;
-          break;
-        }
-      }
-
-      if (!discountExists) {
-        // Create it
-        const createDiscountRes = await admin.graphql(`
-          mutation discountAutomaticAppCreate($automaticAppDiscount: DiscountAutomaticAppInput!) {
-            discountAutomaticAppCreate(automaticAppDiscount: $automaticAppDiscount) {
-              automaticAppDiscount {
-                discountId
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `, {
-          variables: {
-            automaticAppDiscount: {
-              title: "PromoBox NxM Discount",
-              functionId: functionId,
-              startsAt: new Date().toISOString(),
-            }
-          }
-        });
-        
-        const createDiscountData = await createDiscountRes.json();
-        if (createDiscountData.data?.discountAutomaticAppCreate?.userErrors?.length > 0) {
-           console.error("User Errors creating discount:", createDiscountData.data.discountAutomaticAppCreate.userErrors);
+      const createDiscountData = await createDiscountRes.json();
+      if (createDiscountData.data?.discountAutomaticAppCreate?.userErrors?.length > 0) {
+        // If it says "title has already been taken" or similar, we just ignore it.
+        const errors = createDiscountData.data.discountAutomaticAppCreate.userErrors;
+        if (!errors.some(e => e.message.includes("taken") || e.message.includes("already"))) {
+          console.error("User Errors creating discount:", errors);
         }
       }
     } catch (error) {
