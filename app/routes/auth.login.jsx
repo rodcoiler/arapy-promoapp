@@ -10,6 +10,7 @@ import {
   Text,
   TextField,
 } from "@shopify/polaris";
+import enTranslations from "@shopify/polaris/locales/en.json";
 import shopify from "../shopify.server";
 import { loginErrorMessage } from "../auth.login.error.server";
 
@@ -39,28 +40,30 @@ export default function Login() {
   const errors = actionData?.errors || loaderData?.errors || {};
 
   return (
-    <Page>
-      <Card>
-        <Form method="post">
-          <FormLayout>
-            <Text variant="headingMd" as="h2">
-              Log in to PromoBox
-            </Text>
-            <TextField
-              label="Shop domain"
-              name="shop"
-              value={shop}
-              onChange={setShop}
-              autoComplete="off"
-              error={errors.shop}
-              placeholder="example.myshopify.com"
-            />
-            <Button submit variant="primary">
-              Log in
-            </Button>
-          </FormLayout>
-        </Form>
-      </Card>
-    </Page>
+    <AppProvider i18n={enTranslations}>
+      <Page>
+        <Card>
+          <Form method="post">
+            <FormLayout>
+              <Text variant="headingMd" as="h2">
+                Log in to PromoBox
+              </Text>
+              <TextField
+                label="Shop domain"
+                name="shop"
+                value={shop}
+                onChange={setShop}
+                autoComplete="off"
+                error={errors.shop}
+                placeholder="example.myshopify.com"
+              />
+              <Button submit variant="primary">
+                Log in
+              </Button>
+            </FormLayout>
+          </Form>
+        </Card>
+      </Page>
+    </AppProvider>
   );
 }
