@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      BigInt?
+  firstName   String?
+  lastName    String?
+  email       String?
+  accountOwner Boolean  @default(false)
+  locale      String?
+  collaborator Boolean? @default(false)
+  emailVerified Boolean? @default(false)
+}
+
+model Promotion {
+  id           String   @id @default(cuid())
+  shop         String
+  name         String
+  active       Boolean  @default(true)
+  priority     Int      @default(0)
+
+  // Tipo de regla
+  ruleType     String   @default("NxM")
+  // NxM: compra N lleva M a descuento
+  buyQuantity  Int      @default(4)
+  getQuantity  Int      @default(1)
+
+  // Colecciones elegibles (JSON array de IDs de colección)
+  collections  String   @default("[]")
+  // Si aplica a toda la tienda
+  applyToAll   Boolean  @default(false)
+
+  // Tipo de descuento para el item elegido
+  discountType  String   @default("free")
+  // "free" = precio $0
+  // "percentage" = porcentaje
+  // "fixed" = monto fijo
+  discountValue Float    @default(100)
+
+  // Qué item recibe el descuento
+  targetItem   String   @default("cheapest")
+  // "cheapest" = el más barato del grupo
+  // "specific" = producto específico
+
+  // Producto regalo específico (si targetItem = "specific")
+  giftProductId      String?
+  giftProductTitle   String?
+  giftProductImage   String?
+
+  // Envío
+  freeShipping       Boolean  @default(false)
+
+  // Mensajes configurables
+  bannerMsgAlmost    String   @default("¡Agrega {MISSING} artículo(s) más y llévate 1 GRATIS!")
+  bannerMsgActive    String   @default("🎉 ¡Promo activa! Tienes {COUNT} producto(s) GRATIS en tu carrito")
+  modalTitle         String   @default("¡Casi lo logras!")
+  modalBody          String   @default("Agrega {MISSING} artículo(s) más y llévate el de menor valor GRATIS")
+  modalBtnText       String   @default("¡Aprovechar la promo!")
+  modalDismissText   String   @default("No gracias, continuar al pago")
+  badgeText          String   @default("¡GRATIS!")
+  savingsRowLabel    String   @default("Descuento aplicado")
+
+  // Colores
+  accentColor        String   @default("#D9FF4F")
+  accentTextColor    String   @default("#000000")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([shop])
+}

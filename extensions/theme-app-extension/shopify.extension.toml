@@ -1,0 +1,6 @@
+name = "promobox-theme-extension"
+
+[[extensions]]
+type = "theme"
+name = "PromoBox"
+handle = "promobox"

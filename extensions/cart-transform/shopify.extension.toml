@@ -1,0 +1,16 @@
+name = "promobox-cart-transform"
+
+[[extensions]]
+type = "cart_transform"
+name = "PromoBox Cart Transform"
+handle = "promobox-cart-transform"
+
+[extensions.build]
+command = "node build.js"
+path = "dist/index.js"
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "promotions"
+type = "json"
+name = "Active Promotions"

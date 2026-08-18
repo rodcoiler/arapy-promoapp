@@ -1,0 +1,38 @@
+{% comment %}
+  PromoBox — Bloque de Banner y Modal para el Storefront
+  =========================================================
+  Agrega este bloque en theme.liquid antes de </body> o úsalo
+  como App Block en la configuración del tema.
+  
+  El bloque inyecta:
+    1. La configuración de las promociones activas (window.PROMOBOX_CONFIG)
+    2. El script de PromoBox
+{% endcomment %}
+
+{%- assign shop_domain = shop.permanent_domain -%}
+
+<script>
+  window.PROMOBOX_CONFIG = {
+    shop: {{ shop.permanent_domain | json }},
+    promotions: {{ block.settings.promotions_json | default: '[]' }},
+    cartApiUrl: "/cart.js",
+  };
+</script>
+
+{% comment %} Cargar el script del storefront {% endcomment %}
+{{ 'promobox-storefront.js' | asset_url | script_tag }}
+
+{% schema %}
+{
+  "name": "PromoBox",
+  "target": "body",
+  "settings": [
+    {
+      "type": "textarea",
+      "id": "promotions_json",
+      "label": "Promociones (JSON - generado automáticamente)",
+      "info": "Este campo es gestionado automáticamente por la app PromoBox. No lo edites manualmente."
+    }
+  ]
+}
+{% endschema %}
