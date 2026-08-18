@@ -8,6 +8,7 @@
     "build": "remix vite:build",
     "dev": "shopify app dev",
     "dev:local": "remix vite:dev",
+    "start": "remix-serve build/server/index.js",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
     "setup": "prisma generate && prisma migrate deploy",
     "db:migrate": "prisma migrate dev",
