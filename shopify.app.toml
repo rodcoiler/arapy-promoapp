@@ -1,6 +1,6 @@
 name = "PromoBox"
-client_id = "YOUR_CLIENT_ID_HERE"
-application_url = "https://your-app-url.com"
+client_id = "229dad93414ea254c2dd212687b831b3"
+application_url = "https://promoapp.proyecto.link"
 embedded = true
 
 [webhooks]
@@ -8,9 +8,9 @@ embedded = true
 
 [auth]
   redirect_urls = [
-    "https://your-app-url.com/auth/callback",
-    "https://your-app-url.com/auth/shopify/callback",
-    "https://your-app-url.com/api/auth/callback"
+    "https://promoapp.proyecto.link/auth/callback",
+    "https://promoapp.proyecto.link/auth/shopify/callback",
+    "https://promoapp.proyecto.link/api/auth/callback"
   ]
 
 [pos]

@@ -1,6 +1,8 @@
 name = "promobox-theme-extension"
+api_version = "2024-04"
 
 [[extensions]]
 type = "theme"
 name = "PromoBox"
 handle = "promobox"
+uid = "d39c1b46-2319-a31b-f036-03e63c2700b6ca5b8ec9"

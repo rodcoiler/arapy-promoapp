@@ -39,22 +39,31 @@ export const loader = async ({ request, params }) => {
   }
 
   // Fetch collections from Shopify
-  const collectionsResponse = await admin.graphql(`
-    query {
-      collections(first: 50) {
-        edges {
-          node {
-            id
-            title
-            image { url }
-            productsCount { count }
+  let collections = [];
+  try {
+    const collectionsResponse = await admin.graphql(`
+      query {
+        collections(first: 50) {
+          edges {
+            node {
+              id
+              title
+              image { url }
+              productsCount { count }
+            }
           }
         }
       }
+    `);
+    const collectionsData = await collectionsResponse.json();
+    if (collectionsData.errors) {
+       console.error("GraphQL Errors fetching collections:", collectionsData.errors);
+    } else {
+       collections = collectionsData.data.collections.edges.map((e) => e.node);
     }
-  `);
-  const collectionsData = await collectionsResponse.json();
-  const collections = collectionsData.data.collections.edges.map((e) => e.node);
+  } catch (error) {
+    console.error("Error fetching collections in loader:", error);
+  }
 
   return json({ promotion, collections, shop, isNew: params.id === "new" });
 };
