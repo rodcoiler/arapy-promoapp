@@ -11,7 +11,7 @@ import {
   TextField,
 } from "@shopify/polaris";
 import shopify from "../shopify.server";
-import { loginErrorMessage } from "./auth.login.error.server";
+import { loginErrorMessage } from "../auth.login.error.server";
 
 export const loader = async ({ request }) => {
   const errors = loginErrorMessage(request);
