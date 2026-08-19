@@ -175,7 +175,7 @@
 
     const missing = getMissingCount();
     const isActive = currentPromoState === "active";
-    
+
     // Calculate progress percentage
     let progressPercent = 0;
     if (isActive) {
@@ -198,7 +198,7 @@
     bar.className = `promobox-progress-bar promobox-progress-bar--${currentPromoState}`;
     bar.style.setProperty("--promobox-accent", accentColor);
     bar.style.setProperty("--promobox-accent-text", accentTextColor);
-    
+
     bar.innerHTML = `
       <div class="promobox-progress-bar__content">
         <div class="promobox-progress-bar__text">
@@ -419,7 +419,7 @@
         width: 100%;
         background: #ffffff;
         box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-        z-index: 99999;
+        z-index: 8;
         transform: translateY(100%);
         transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
