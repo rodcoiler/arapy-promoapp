@@ -41,8 +41,6 @@ export const loader = async ({ request }) => {
         buyQuantity: p.buyQuantity,
         getQuantity: p.getQuantity,
         collections: JSON.parse(p.collections || "[]"),
-        productIds: JSON.parse(p.productIds || "[]"),
-        getProductIds: JSON.parse(p.getProductIds || "[]"),
         applyToAll: p.applyToAll,
         discountType: p.discountType,
         discountValue: p.discountValue,

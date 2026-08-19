@@ -20,7 +20,7 @@
 </script>
 
 {% comment %} Cargar el script del storefront {% endcomment %}
-{{ 'promobox-storefront.js' | asset_url | script_tag }}
+<script src="{{ 'promobox-storefront.js' | asset_url }}" defer></script>
 
 {% schema %}
 {
