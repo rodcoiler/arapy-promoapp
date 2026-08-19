@@ -46,6 +46,10 @@ model Promotion {
   // Si aplica a toda la tienda
   applyToAll   Boolean  @default(false)
 
+  // Colecciones para el producto gratis/descontado
+  sameCollections Boolean? @default(true)
+  getCollections  String?  @default("[]")
+
   // Tipo de descuento para el item elegido
   discountType  String   @default("free")
   // "free" = precio $0

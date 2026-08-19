@@ -87,6 +87,8 @@ export const action = async ({ request, params }) => {
     getQuantity: formData.get("getQuantity"),
     collections: JSON.parse(formData.get("collections") || "[]"),
     applyToAll: formData.get("applyToAll") === "true",
+    sameCollections: formData.get("sameCollections") === "true",
+    getCollections: JSON.parse(formData.get("getCollections") || "[]"),
     discountType: formData.get("discountType"),
     discountValue: formData.get("discountValue"),
     targetItem: formData.get("targetItem"),
@@ -133,6 +135,10 @@ export default function PromotionForm() {
     ? JSON.parse(promotion.collections || "[]")
     : [];
 
+  const existingGetCollections = promotion
+    ? JSON.parse(promotion.getCollections || "[]")
+    : [];
+
   // Form State
   const [name, setName] = useState(promotion?.name ?? "");
   const [active, setActive] = useState(promotion?.active ?? true);
@@ -141,6 +147,8 @@ export default function PromotionForm() {
   const [getQty, setGetQty] = useState(String(promotion?.getQuantity ?? 1));
   const [selectedCollections, setSelectedCollections] = useState(existingCollections);
   const [applyToAll, setApplyToAll] = useState(promotion?.applyToAll ?? false);
+  const [sameCollections, setSameCollections] = useState(promotion?.sameCollections ?? true);
+  const [selectedGetCollections, setSelectedGetCollections] = useState(existingGetCollections);
   const [discountType, setDiscountType] = useState(promotion?.discountType ?? "free");
   const [discountValue, setDiscountValue] = useState(String(promotion?.discountValue ?? 100));
   const [targetItem, setTargetItem] = useState(promotion?.targetItem ?? "cheapest");
@@ -187,6 +195,14 @@ export default function PromotionForm() {
     );
   };
 
+  const toggleGetCollection = (collectionId) => {
+    setSelectedGetCollections((prev) =>
+      prev.includes(collectionId)
+        ? prev.filter((id) => id !== collectionId)
+        : [...prev, collectionId]
+    );
+  };
+
   const handleSave = () => {
     const formData = new FormData();
     formData.append("name", name);
@@ -196,6 +212,8 @@ export default function PromotionForm() {
     formData.append("getQuantity", getQty);
     formData.append("collections", JSON.stringify(selectedCollections));
     formData.append("applyToAll", String(applyToAll));
+    formData.append("sameCollections", String(sameCollections));
+    formData.append("getCollections", JSON.stringify(selectedGetCollections));
     formData.append("discountType", discountType);
     formData.append("discountValue", discountValue);
     formData.append("targetItem", targetItem);
@@ -382,26 +400,30 @@ export default function PromotionForm() {
 
               {/* Sección 2: Colecciones */}
               <SectionCard
-                title="🏷️ Productos Elegibles"
-                subtitle="Define qué productos participan en la promo"
+                title="🏷️ Productos Elegibles y Colección del Regalo"
+                subtitle="Define qué productos se compran y de qué colección se obtiene el regalo"
               >
                 <BlockStack gap="400">
+                  <Text variant="headingSm" as="h4" fontWeight="semibold">
+                    1️⃣ Colección requerida para comprar ({buyQty} unidades):
+                  </Text>
+
                   <Checkbox
-                    label="Aplicar a toda la tienda (todos los productos)"
+                    label="Aplicar compra a toda la tienda (cualquier producto)"
                     checked={applyToAll}
                     onChange={setApplyToAll}
                   />
 
                   {!applyToAll && (
                     <BlockStack gap="300">
-                      <Text variant="bodyMd" as="p" fontWeight="semibold">
-                        Selecciona las colecciones elegibles:
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Selecciona las colecciones que el cliente debe comprar:
                       </Text>
                       <div style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
                         gap: "12px",
-                        maxHeight: "300px",
+                        maxHeight: "260px",
                         overflowY: "auto",
                         paddingRight: "4px",
                       }}>
@@ -409,7 +431,7 @@ export default function PromotionForm() {
                           const isSelected = selectedCollections.includes(col.id);
                           return (
                             <div
-                              key={col.id}
+                              key={`buy-${col.id}`}
                               onClick={() => toggleCollection(col.id)}
                               style={{
                                 border: `2px solid ${isSelected ? "#6366f1" : "#e5e7eb"}`,
@@ -426,6 +448,7 @@ export default function PromotionForm() {
                                   height: "32px",
                                   borderRadius: "8px",
                                   background: isSelected ? "#6366f1" : "#f3f4f6",
+                                  color: isSelected ? "#fff" : "#000",
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
@@ -460,7 +483,95 @@ export default function PromotionForm() {
                             {selectedCollections.length}
                           </span>
                           <span style={{ color: "#5b21b6", fontSize: "13px" }}>
-                            colección(es) seleccionada(s)
+                            colección(es) de compra seleccionada(s)
+                          </span>
+                        </div>
+                      )}
+                    </BlockStack>
+                  )}
+
+                  <Divider />
+
+                  <Text variant="headingSm" as="h4" fontWeight="semibold">
+                    2️⃣ Colección para el producto GRATIS / Descontado ({getQty} unidad{parseInt(getQty) > 1 ? "es" : ""}):
+                  </Text>
+
+                  <Checkbox
+                    label="El producto gratis debe ser de las mismas colecciones de compra"
+                    checked={sameCollections}
+                    onChange={setSameCollections}
+                  />
+
+                  {!sameCollections && (
+                    <BlockStack gap="300">
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Elige la colección de la cual se descontará el producto gratis:
+                      </Text>
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                        gap: "12px",
+                        maxHeight: "260px",
+                        overflowY: "auto",
+                        paddingRight: "4px",
+                      }}>
+                        {collections.map((col) => {
+                          const isSelected = selectedGetCollections.includes(col.id);
+                          return (
+                            <div
+                              key={`get-${col.id}`}
+                              onClick={() => toggleGetCollection(col.id)}
+                              style={{
+                                border: `2px solid ${isSelected ? "#10b981" : "#e5e7eb"}`,
+                                borderRadius: "12px",
+                                padding: "12px",
+                                cursor: "pointer",
+                                background: isSelected ? "#ecfdf5" : "#fff",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              <InlineStack gap="200" blockAlign="center" wrap={false}>
+                                <div style={{
+                                  width: "32px",
+                                  height: "32px",
+                                  borderRadius: "8px",
+                                  background: isSelected ? "#10b981" : "#f3f4f6",
+                                  color: isSelected ? "#fff" : "#000",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "14px",
+                                  flexShrink: 0,
+                                }}>
+                                  {isSelected ? "✓" : "○"}
+                                </div>
+                                <BlockStack gap="0">
+                                  <Text variant="bodySm" as="p" fontWeight="semibold">
+                                    {col.title}
+                                  </Text>
+                                  <Text variant="bodySm" as="p" tone="subdued">
+                                    {col.productsCount?.count ?? 0} productos
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {selectedGetCollections.length > 0 && (
+                        <div style={{
+                          background: "#ecfdf5",
+                          borderRadius: "8px",
+                          padding: "8px 14px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}>
+                          <span style={{ fontWeight: "700", color: "#065f46" }}>
+                            {selectedGetCollections.length}
+                          </span>
+                          <span style={{ color: "#065f46", fontSize: "13px" }}>
+                            colección(es) de regalo seleccionada(s)
                           </span>
                         </div>
                       )}
@@ -787,11 +898,19 @@ export default function PromotionForm() {
                     value={targetItem === "cheapest" ? "El más barato" : "El más caro"}
                   />
                   <SummaryRow
-                    label="Colecciones"
+                    label="Colección compra"
                     value={
                       applyToAll
                         ? "Toda la tienda"
                         : `${selectedCollections.length} colección(es)`
+                    }
+                  />
+                  <SummaryRow
+                    label="Colección regalo"
+                    value={
+                      sameCollections
+                        ? "Mismas que compra"
+                        : `${selectedGetCollections.length} colección(es)`
                     }
                   />
                   <SummaryRow

@@ -60,6 +60,13 @@ export const action = async ({ request }) => {
     } catch (e) {
       console.error("Error parsing collections JSON:", e);
     }
+
+    let getCollections = [];
+    try {
+      getCollections = JSON.parse(p.getCollections || "[]");
+    } catch (e) {
+      console.error("Error parsing getCollections JSON:", e);
+    }
     
     let productIds = [];
     if (!p.applyToAll && collections.length > 0) {
@@ -75,6 +82,8 @@ export const action = async ({ request }) => {
       getQuantity: p.getQuantity,
       applyToAll: p.applyToAll,
       collections: collections,
+      sameCollections: p.sameCollections ?? true,
+      getCollections: getCollections,
       productIds: productIds, // Inject resolved product IDs for the backend Function
       discountType: p.discountType,
       discountValue: p.discountValue,
@@ -95,7 +104,7 @@ export const action = async ({ request }) => {
 
   const promotionsJson = JSON.stringify(resolvedPromotions);
 
-  // 1. Store promotions as shop metafield (used by Cart Transform Function)
+  // 1. Store promotions as shop metafield (used by Cart Transform Function & Storefront)
   let metafieldData = null;
   try {
     const shopQueryRes = await admin.graphql(`query { shop { id } }`);
@@ -142,22 +151,45 @@ export const action = async ({ request }) => {
   for (const p of activePromotions) {
     if (p.ruleType === "NxM") {
       try {
-        let targetCollectionGids = [];
+        let targetBuyCollectionGids = [];
         let collections = [];
         try {
           collections = JSON.parse(p.collections || "[]");
         } catch (e) {}
 
+        let getCollections = [];
+        try {
+          getCollections = JSON.parse(p.getCollections || "[]");
+        } catch (e) {}
+
+        // Fetch all store collections if needed
+        let allStoreCollectionGids = null;
+        const getAllStoreCollections = async () => {
+          if (!allStoreCollectionGids) {
+            const colsRes = await admin.graphql(`query { collections(first: 50) { edges { node { id } } } }`);
+            const colsData = await colsRes.json();
+            allStoreCollectionGids = colsData?.data?.collections?.edges?.map(e => e.node.id) || [];
+          }
+          return allStoreCollectionGids;
+        };
+
         if (p.applyToAll || !collections.length) {
-          // Fetch all store collections
-          const colsRes = await admin.graphql(`query { collections(first: 50) { edges { node { id } } } }`);
-          const colsData = await colsRes.json();
-          targetCollectionGids = colsData?.data?.collections?.edges?.map(e => e.node.id) || [];
+          targetBuyCollectionGids = await getAllStoreCollections();
         } else {
-          targetCollectionGids = collections;
+          targetBuyCollectionGids = collections;
         }
 
-        if (targetCollectionGids.length > 0) {
+        // Determine target Get collection
+        let targetGetCollectionGids = [];
+        if (p.sameCollections !== false) {
+          targetGetCollectionGids = targetBuyCollectionGids;
+        } else if (getCollections.length > 0) {
+          targetGetCollectionGids = getCollections;
+        } else {
+          targetGetCollectionGids = await getAllStoreCollections();
+        }
+
+        if (targetBuyCollectionGids.length > 0 && targetGetCollectionGids.length > 0) {
           const discountPercentage = p.discountType === "free" ? 1.0 : (p.discountValue ? p.discountValue / 100 : 1.0);
 
           const bxgyRes = await admin.graphql(`
@@ -186,7 +218,7 @@ export const action = async ({ request }) => {
                 customerBuys: {
                   items: {
                     collections: {
-                      add: targetCollectionGids
+                      add: targetBuyCollectionGids
                     }
                   },
                   value: {
@@ -196,7 +228,7 @@ export const action = async ({ request }) => {
                 customerGets: {
                   items: {
                     collections: {
-                      add: targetCollectionGids
+                      add: targetGetCollectionGids
                     }
                   },
                   value: {

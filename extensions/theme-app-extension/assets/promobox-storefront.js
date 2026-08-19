@@ -57,8 +57,8 @@
     for (const promo of config.promotions) {
       if (!promo.active) continue;
 
-      const eligibleItems = getEligibleItems(cartData.items, promo);
-      const totalUnits = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
+      const eligibleBuyItems = getEligibleItems(cartData.items, promo);
+      const totalUnits = eligibleBuyItems.reduce((sum, item) => sum + item.quantity, 0);
       const { buyQuantity, getQuantity } = promo;
 
       if (totalUnits >= buyQuantity) {
@@ -66,8 +66,9 @@
         currentPromoState = "active";
         activePromo = promo;
 
-        // Identificar el item que recibe el descuento (el más barato en unidades)
-        const allUnits = expandToUnits(eligibleItems);
+        // Identificar el item que recibe el descuento (de la colección de regalo)
+        const eligibleGetItems = getEligibleGetItems(cartData.items, promo);
+        const allUnits = expandToUnits(eligibleGetItems.length > 0 ? eligibleGetItems : eligibleBuyItems);
         if (promo.targetItem === "most_expensive") {
           allUnits.sort((a, b) => b.price - a.price);
         } else {
@@ -92,7 +93,28 @@
   function getEligibleItems(items, promo) {
     if (promo.applyToAll) return items;
 
-    const eligibleCollections = JSON.parse(promo.collections || "[]");
+    const eligibleCollections = Array.isArray(promo.collections) 
+      ? promo.collections 
+      : JSON.parse(promo.collections || "[]");
+    if (!eligibleCollections.length) return items;
+
+    return items.filter((item) => {
+      const itemCollections = item.collections || item.product_tags || [];
+      return itemCollections.some((col) => {
+        const colId = typeof col === "string" ? col : col.id || col;
+        return eligibleCollections.includes(colId);
+      });
+    });
+  }
+
+  function getEligibleGetItems(items, promo) {
+    if (promo.sameCollections !== false) {
+      return getEligibleItems(items, promo);
+    }
+
+    const eligibleCollections = Array.isArray(promo.getCollections)
+      ? promo.getCollections
+      : JSON.parse(promo.getCollections || "[]");
     if (!eligibleCollections.length) return items;
 
     return items.filter((item) => {
