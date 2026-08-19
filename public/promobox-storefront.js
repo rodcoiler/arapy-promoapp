@@ -81,8 +81,8 @@
       }
 
       const missingForPromo = buyQuantity - totalUnits;
-      if (missingForPromo <= Math.ceil(buyQuantity * 0.4)) {
-        // "Casi" - falta menos del 40% para activar la promo
+      if (totalUnits > 0 && missingForPromo > 0) {
+        // "Casi" - muestra la barra desde el primer artículo
         currentPromoState = "almost";
         activePromo = promo;
         discountedLineIndex = null;
