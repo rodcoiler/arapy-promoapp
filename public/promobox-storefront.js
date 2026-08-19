@@ -17,8 +17,16 @@
 (function () {
   "use strict";
 
+  // ─── Config (inyectada desde Liquid / Script Tag) ─────────────────────────
+  const config = window.PROMOBOX_CONFIG || {
+    promotions: [],
+    cartApiUrl: "/cart.js",
+    shop: "",
+  };
+
+  if (!config.promotions || config.promotions.length === 0) return;
+
   // ─── State ────────────────────────────────────────────────────────────────
-  let config = { promotions: [], shop: "" };
   let cartData = null;
   let currentPromoState = null; // null | "almost" | "active"
   let activePromo = null;
@@ -26,31 +34,6 @@
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   async function init() {
-    // Detect app origin dynamically from script tag src
-    const scriptSrc = document.currentScript ? document.currentScript.src : "";
-    const appUrl = scriptSrc ? new URL(scriptSrc).origin : "";
-    const shop = window.Shopify?.shop || "";
-
-    if (!shop || !appUrl) {
-      console.warn("[PromoBox] Missing shop metadata or script source origin.");
-      return;
-    }
-
-    try {
-      // Fetch promotions configuration from public API
-      const resConfig = await fetch(`${appUrl}/api/promotions?shop=${shop}`);
-      const dataConfig = await resConfig.json();
-      config.promotions = dataConfig.promotions || [];
-      config.shop = shop;
-    } catch (e) {
-      console.error("[PromoBox] Error loading promotions config:", e);
-      return;
-    }
-
-    if (!config.promotions || config.promotions.length === 0) {
-      return; // No active promotions
-    }
-
     cartData = await fetchCart();
     evaluatePromotions();
     setupUI();
@@ -74,8 +57,8 @@
     for (const promo of config.promotions) {
       if (!promo.active) continue;
 
-      const eligibleItems = getEligibleItems(cartData.items, promo);
-      const totalUnits = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
+      const eligibleBuyItems = getEligibleItems(cartData.items, promo);
+      const totalUnits = eligibleBuyItems.reduce((sum, item) => sum + item.quantity, 0);
       const { buyQuantity, getQuantity } = promo;
 
       if (totalUnits >= buyQuantity) {
@@ -83,8 +66,9 @@
         currentPromoState = "active";
         activePromo = promo;
 
-        // Identificar el item que recibe el descuento (el más barato en unidades)
-        const allUnits = expandToUnits(eligibleItems);
+        // Identificar el item que recibe el descuento (de la colección de regalo)
+        const eligibleGetItems = getEligibleGetItems(cartData.items, promo);
+        const allUnits = expandToUnits(eligibleGetItems.length > 0 ? eligibleGetItems : eligibleBuyItems);
         if (promo.targetItem === "most_expensive") {
           allUnits.sort((a, b) => b.price - a.price);
         } else {
@@ -109,7 +93,28 @@
   function getEligibleItems(items, promo) {
     if (promo.applyToAll) return items;
 
-    const eligibleCollections = JSON.parse(promo.collections || "[]");
+    const eligibleCollections = Array.isArray(promo.collections) 
+      ? promo.collections 
+      : JSON.parse(promo.collections || "[]");
+    if (!eligibleCollections.length) return items;
+
+    return items.filter((item) => {
+      const itemCollections = item.collections || item.product_tags || [];
+      return itemCollections.some((col) => {
+        const colId = typeof col === "string" ? col : col.id || col;
+        return eligibleCollections.includes(colId);
+      });
+    });
+  }
+
+  function getEligibleGetItems(items, promo) {
+    if (promo.sameCollections !== false) {
+      return getEligibleItems(items, promo);
+    }
+
+    const eligibleCollections = Array.isArray(promo.getCollections)
+      ? promo.getCollections
+      : JSON.parse(promo.getCollections || "[]");
     if (!eligibleCollections.length) return items;
 
     return items.filter((item) => {
@@ -148,7 +153,7 @@
     injectStyles();
 
     if (currentPromoState === "active" || currentPromoState === "almost") {
-      renderBanner();
+      renderProgressBar();
     }
 
     if (currentPromoState === "almost") {
@@ -164,77 +169,85 @@
     document.addEventListener("cart:updated", async () => {
       cartData = await fetchCart();
       evaluatePromotions();
-      updateBanner();
+      updateProgressBar();
       renderCartBadges();
       renderSavingsRow();
     });
   }
 
-  // ─── Banner ───────────────────────────────────────────────────────────────
-  function renderBanner() {
-    if (document.getElementById("promobox-banner")) return;
+  // ─── Progress Bar ─────────────────────────────────────────────────────────
+  function renderProgressBar() {
+    if (document.getElementById("promobox-progress-bar")) return;
 
     const promo = activePromo;
+    // Check if progress bar is enabled, defaults to true if undefined
+    if (promo.enableProgressBar === false) return;
+
     const missing = getMissingCount();
     const isActive = currentPromoState === "active";
+    
+    // Calculate progress percentage
+    let progressPercent = 0;
+    if (isActive) {
+      progressPercent = 100;
+    } else if (cartData && cartData.items) {
+      const eligible = getEligibleItems(cartData.items, promo);
+      const totalUnits = eligible.reduce((s, i) => s + i.quantity, 0);
+      progressPercent = Math.min(100, (totalUnits / promo.buyQuantity) * 100);
+    }
 
     const msg = isActive
-      ? (promo.bannerMsgActive || "").replace("{COUNT}", Math.abs(
-          getEligibleItems(cartData.items, promo).reduce((s, i) => s + i.quantity, 0) - promo.buyQuantity + promo.getQuantity
-        ))
-      : (promo.bannerMsgAlmost || "").replace("{MISSING}", missing);
+      ? (promo.bannerMsgActive || "🎉 ¡Promo activa!").replace("{COUNT}", promo.getQuantity)
+      : (promo.bannerMsgAlmost || "¡Agrega {MISSING} artículo(s) más!").replace("{MISSING}", missing);
 
     const accentColor = promo.accentColor || "#D9FF4F";
     const accentTextColor = promo.accentTextColor || "#000";
 
-    const banner = document.createElement("div");
-    banner.id = "promobox-banner";
-    banner.className = `promobox-banner promobox-banner--${currentPromoState}`;
-    banner.setAttribute("role", "alert");
-    banner.innerHTML = `
-      <div class="promobox-banner__icon">
-        ${isActive
-          ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
-          : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
-        }
+    const bar = document.createElement("div");
+    bar.id = "promobox-progress-bar";
+    bar.className = `promobox-progress-bar promobox-progress-bar--${currentPromoState}`;
+    bar.style.setProperty("--promobox-accent", accentColor);
+    bar.style.setProperty("--promobox-accent-text", accentTextColor);
+    
+    bar.innerHTML = `
+      <div class="promobox-progress-bar__content">
+        <div class="promobox-progress-bar__text">
+          ${isActive ? '✨ ' : ''}${msg}
+        </div>
+        <div class="promobox-progress-track">
+          <div class="promobox-progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
       </div>
-      <div class="promobox-banner__text">${msg}</div>
-      <button class="promobox-banner__close" aria-label="Cerrar">&times;</button>
+      <button class="promobox-progress-bar__close" aria-label="Cerrar">&times;</button>
     `;
 
-    // Apply accent color for active state
-    if (isActive) {
-      banner.style.setProperty("--promobox-accent", accentColor);
-      banner.style.setProperty("--promobox-accent-text", accentTextColor);
-    }
-
-    document.body.appendChild(banner);
+    document.body.appendChild(bar);
 
     // Show with animation
     requestAnimationFrame(() => {
       setTimeout(() => {
-        banner.classList.add("promobox-banner--show");
-      }, 800);
+        bar.classList.add("promobox-progress-bar--show");
+      }, 500);
     });
 
     // Close button
-    banner.querySelector(".promobox-banner__close").addEventListener("click", () => {
-      banner.classList.remove("promobox-banner--show");
-      sessionStorage.setItem(`promobox_banner_closed_${currentPromoState}`, "1");
+    bar.querySelector(".promobox-progress-bar__close").addEventListener("click", () => {
+      bar.classList.remove("promobox-progress-bar--show");
+      sessionStorage.setItem(`promobox_bar_closed_${currentPromoState}`, "1");
     });
 
     // Check session storage
-    const closed = sessionStorage.getItem(`promobox_banner_closed_${currentPromoState}`);
+    const closed = sessionStorage.getItem(`promobox_bar_closed_${currentPromoState}`);
     if (closed) {
-      banner.style.display = "none";
+      bar.style.display = "none";
     }
   }
 
-  function updateBanner() {
-    const existing = document.getElementById("promobox-banner");
+  function updateProgressBar() {
+    const existing = document.getElementById("promobox-progress-bar");
     if (existing) existing.remove();
     if (currentPromoState === "active" || currentPromoState === "almost") {
-      renderBanner();
+      renderProgressBar();
     }
   }
 
@@ -408,73 +421,70 @@
     const styles = document.createElement("style");
     styles.id = "promobox-styles";
     styles.textContent = `
-      /* ── Banner ──────────────────────────────────── */
-      .promobox-banner {
+      /* ── Progress Bar ──────────────────────────────── */
+      .promobox-progress-bar {
         position: fixed;
-        top: 80px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-200%);
+        bottom: 0;
+        left: 0;
+        width: 100%;
         background: #ffffff;
-        padding: 11px 24px 11px 14px;
-        border-radius: 50px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.12);
-        z-index: 9998;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 92%;
-        max-width: 520px;
-        opacity: 0;
-        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
-        border: 1px solid #f0f0f0;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        z-index: 99999;
+        transform: translateY(100%);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+        border-top: 1px solid #f0f0f0;
       }
-      .promobox-banner--show {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
+      .promobox-progress-bar--show {
+        transform: translateY(0);
       }
-      .promobox-banner--active {
-        border: 2px solid var(--promobox-accent, #D9FF4F);
+      .promobox-progress-bar__content {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 12px 20px 16px;
+        text-align: center;
+        position: relative;
       }
-      .promobox-banner--active .promobox-banner__icon {
-        background: var(--promobox-accent, #D9FF4F);
-        color: var(--promobox-accent-text, #000);
-      }
-      .promobox-banner--almost .promobox-banner__icon {
-        background: #f3f4f6;
-        color: #6b7280;
-      }
-      .promobox-banner__icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
+      .promobox-progress-bar__text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        gap: 6px;
       }
-      .promobox-banner__text {
-        font-size: 14px;
-        color: #333;
-        line-height: 1.4;
-        flex: 1;
+      .promobox-progress-bar--active .promobox-progress-bar__text {
+        color: var(--promobox-accent-text, #000);
       }
-      .promobox-banner__text strong { font-weight: 800; color: #000; }
-      .promobox-banner__close {
+      .promobox-progress-track {
+        height: 8px;
+        background: #f3f4f6;
+        border-radius: 10px;
+        overflow: hidden;
+        width: 100%;
+      }
+      .promobox-progress-fill {
+        height: 100%;
+        background: var(--promobox-accent, #10b981);
+        border-radius: 10px;
+        transition: width 0.5s ease-out;
+      }
+      .promobox-progress-bar__close {
+        position: absolute;
+        right: 12px;
+        top: 8px;
         background: transparent;
         border: none;
-        font-size: 22px;
-        line-height: 1;
+        font-size: 20px;
         color: #9ca3af;
         cursor: pointer;
-        padding: 0 0 0 8px;
-        transition: color 0.15s;
+        line-height: 1;
+        padding: 4px;
       }
-      .promobox-banner__close:hover { color: #000; }
-
-      @media (max-width: 768px) {
-        .promobox-banner { top: 60px; padding: 10px 18px 10px 10px; }
-        .promobox-banner__text { font-size: 13px; }
+      .promobox-progress-bar__close:hover {
+        color: #4b5563;
       }
 
       /* ── Modal ───────────────────────────────────── */
