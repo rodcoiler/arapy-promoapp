@@ -148,6 +148,39 @@ export const action = async ({ request }) => {
     console.error("Error setting metafield:", error);
   }
 
+  // 1.5 Delete ALL existing ScriptTags (migration to App Embeds)
+  try {
+    const scriptTagsRes = await admin.graphql(`
+      query {
+        scriptTags(first: 10) {
+          edges {
+            node {
+              id
+              src
+            }
+          }
+        }
+      }
+    `);
+    const scriptTagsData = await scriptTagsRes.json();
+    const scriptTagsEdges = scriptTagsData?.data?.scriptTags?.edges || [];
+    
+    for (const edge of scriptTagsEdges) {
+      if (edge.node.src.includes("promobox-storefront.js")) {
+        console.log("Deleting old ScriptTag:", edge.node.id);
+        await admin.graphql(`
+          mutation scriptTagDelete($id: ID!) {
+            scriptTagDelete(id: $id) {
+              deletedScriptTagId
+            }
+          }
+        `, { variables: { id: edge.node.id } });
+      }
+    }
+  } catch (error) {
+    console.error("Error deleting old ScriptTags:", error);
+  }
+
   // 2. Create or Update Native Automatic BXGY Discount (Works on all Shopify Plans)
   // Clean up any old test discounts with previous titles
   try {
