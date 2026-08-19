@@ -14,7 +14,7 @@
 <script>
   window.PROMOBOX_CONFIG = {
     shop: {{ shop.permanent_domain | json }},
-    promotions: {{ shop.metafields.promobox.promotions.value | default: '[]' }},
+    promotions: {{ shop.metafields.promobox.promotions.value | json }},
     cartApiUrl: "/cart.js",
   };
 </script>
