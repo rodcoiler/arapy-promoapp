@@ -78,6 +78,15 @@ export const action = async ({ request }) => {
       getProductIds = await resolveProductIdsForCollections(getCollections);
     }
 
+    // Save resolved IDs to the database so they are available for /api/promotions fallback endpoint
+    await prisma.promotion.update({
+      where: { id: p.id },
+      data: {
+        productIds: JSON.stringify(productIds),
+        getProductIds: JSON.stringify(getProductIds),
+      },
+    });
+
     resolvedPromotions.push({
       id: p.id,
       name: p.name,

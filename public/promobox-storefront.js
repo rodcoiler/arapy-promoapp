@@ -18,13 +18,7 @@
   "use strict";
 
   // ─── Config (inyectada desde Liquid / Script Tag) ─────────────────────────
-  const config = window.PROMOBOX_CONFIG || {
-    promotions: [],
-    cartApiUrl: "/cart.js",
-    shop: "",
-  };
-
-  if (!config.promotions || config.promotions.length === 0) return;
+  let config = window.PROMOBOX_CONFIG || null;
 
   // ─── State ────────────────────────────────────────────────────────────────
   let cartData = null;
@@ -34,6 +28,29 @@
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   async function init() {
+    if (!config || !config.promotions || config.promotions.length === 0) {
+      // Fallback: fetch configuration dynamically if App Embed is not enabled
+      const scriptUrl = document.currentScript ? document.currentScript.src : window.location.href;
+      const urlObj = new URL(scriptUrl, window.location.origin);
+      const shop = urlObj.searchParams.get("shop") || window.Shopify?.shop;
+      
+      if (shop) {
+        try {
+          const res = await fetch(`https://promoapp.proyecto.link/api/promotions?shop=${shop}`);
+          const data = await res.json();
+          config = {
+            promotions: data.promotions || [],
+            cartApiUrl: "/cart.js",
+            shop: shop,
+          };
+        } catch (e) {
+          console.warn("[PromoBox] Error fetching promotions fallback:", e);
+        }
+      }
+    }
+
+    if (!config || !config.promotions || config.promotions.length === 0) return;
+
     cartData = await fetchCart();
     evaluatePromotions();
     setupUI();

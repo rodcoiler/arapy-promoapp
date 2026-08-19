@@ -42,13 +42,14 @@ model Promotion {
   getQuantity  Int      @default(1)
 
   // Colecciones elegibles (JSON array de IDs de colección)
-  collections  String   @default("[]")
-  // Si aplica a toda la tienda
-  applyToAll   Boolean  @default(false)
-
+  collections      String  @default("[]")
+  productIds       String?
+  applyToAll       Boolean @default(false)
+  
   // Colecciones para el producto gratis/descontado
-  sameCollections Boolean? @default(true)
-  getCollections  String?  @default("[]")
+  sameCollections  Boolean? @default(true)
+  getCollections   String?  @default("[]")
+  getProductIds    String?
 
   // Tipo de descuento para el item elegido
   discountType  String   @default("free")
