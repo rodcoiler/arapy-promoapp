@@ -1,6 +1,6 @@
 name = "PromoBox"
 client_id = "229dad93414ea254c2dd212687b831b3"
-application_url = "https://promoapp.proyecto.link"
+application_url = "https://promoapp.proyecto.link/app"
 embedded = true
 
 [access_scopes]
