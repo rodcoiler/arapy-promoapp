@@ -95,6 +95,7 @@ export const action = async ({ request, params }) => {
     giftProductId: formData.get("giftProductId") || null,
     giftProductTitle: formData.get("giftProductTitle") || null,
     freeShipping: formData.get("freeShipping") === "true",
+    enableProgressBar: formData.get("enableProgressBar") === "true",
     bannerMsgAlmost: formData.get("bannerMsgAlmost"),
     bannerMsgActive: formData.get("bannerMsgActive"),
     modalTitle: formData.get("modalTitle"),
