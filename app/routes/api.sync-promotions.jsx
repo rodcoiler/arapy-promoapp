@@ -173,7 +173,7 @@ export const action = async ({ request }) => {
     const existingEdges = existingData?.data?.discountNodes?.edges || [];
     for (const edge of existingEdges) {
       const discountTitle = edge.node?.discount?.title;
-      if (discountTitle && (discountTitle.includes("PromoBox") || discountTitle === "Promo 4X3" || discountTitle === "product_discounts")) {
+      if (discountTitle && (discountTitle.includes("PromoBox") || discountTitle === "Promo 4X3" || discountTitle === "product_discounts" || discountTitle.toLowerCase().includes("4x3") || discountTitle.toLowerCase().includes("4×3") || discountTitle === p.name)) {
         await admin.graphql(`
           mutation discountAutomaticDelete($id: ID!) {
             discountAutomaticDelete(id: $id) {
