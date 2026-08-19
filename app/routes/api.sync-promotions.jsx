@@ -89,6 +89,7 @@ export const action = async ({ request }) => {
       discountValue: p.discountValue,
       targetItem: p.targetItem,
       freeShipping: p.freeShipping,
+      enableProgressBar: p.enableProgressBar ?? true,
       bannerMsgAlmost: p.bannerMsgAlmost,
       bannerMsgActive: p.bannerMsgActive,
       modalTitle: p.modalTitle,

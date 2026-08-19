@@ -153,6 +153,7 @@ export default function PromotionForm() {
   const [discountValue, setDiscountValue] = useState(String(promotion?.discountValue ?? 100));
   const [targetItem, setTargetItem] = useState(promotion?.targetItem ?? "cheapest");
   const [freeShipping, setFreeShipping] = useState(promotion?.freeShipping ?? false);
+  const [enableProgressBar, setEnableProgressBar] = useState(promotion?.enableProgressBar ?? true);
 
   // Messages
   const [bannerMsgAlmost, setBannerMsgAlmost] = useState(
@@ -218,6 +219,7 @@ export default function PromotionForm() {
     formData.append("discountValue", discountValue);
     formData.append("targetItem", targetItem);
     formData.append("freeShipping", String(freeShipping));
+    formData.append("enableProgressBar", String(enableProgressBar));
     formData.append("bannerMsgAlmost", bannerMsgAlmost);
     formData.append("bannerMsgActive", bannerMsgActive);
     formData.append("modalTitle", modalTitle);
@@ -635,26 +637,74 @@ export default function PromotionForm() {
 
               {/* Sección 4: Mensajes */}
               <SectionCard
-                title="💬 Mensajes y Textos"
-                subtitle="Personaliza los mensajes que ven tus clientes"
+                title="💬 Barra Progresiva Inferior"
+                subtitle="Personaliza la barra que aparece en la parte inferior de la pantalla"
               >
                 <FormLayout>
+                  <div style={{
+                    background: enableProgressBar
+                      ? "linear-gradient(135deg, #ecfdf5, #d1fae5)"
+                      : "#fafafa",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    border: `2px solid ${enableProgressBar ? "#10b981" : "#e5e7eb"}`,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    marginBottom: "16px"
+                  }}
+                  onClick={() => setEnableProgressBar(!enableProgressBar)}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <InlineStack gap="300" blockAlign="center">
+                        <span style={{ fontSize: "28px" }}>🚀</span>
+                        <BlockStack gap="100">
+                          <Text variant="bodyMd" as="p" fontWeight="semibold">
+                            Mostrar barra progresiva
+                          </Text>
+                          <Text variant="bodySm" as="p" tone="subdued">
+                            Fija una barra inferior indicando el avance de la promo
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                      <div style={{
+                        width: "48px",
+                        height: "26px",
+                        background: enableProgressBar ? "#10b981" : "#d1d5db",
+                        borderRadius: "50px",
+                        position: "relative",
+                        transition: "background 0.2s ease",
+                      }}>
+                        <div style={{
+                          position: "absolute",
+                          width: "20px",
+                          height: "20px",
+                          background: "#fff",
+                          borderRadius: "50%",
+                          top: "3px",
+                          left: enableProgressBar ? "25px" : "3px",
+                          transition: "left 0.2s ease",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }} />
+                      </div>
+                    </InlineStack>
+                  </div>
+
                   <Text variant="bodyMd" as="p" tone="subdued">
                     Usa <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: "4px" }}>{"{MISSING}"}</code> para el número de productos faltantes y <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: "4px" }}>{"{COUNT}"}</code> para la cantidad de productos gratis.
                   </Text>
                   <TextField
-                    label="Banner — Mensaje cuando falta poco"
+                    label="Mensaje cuando falta poco"
                     value={bannerMsgAlmost}
                     onChange={setBannerMsgAlmost}
                     autoComplete="off"
-                    helpText="Se muestra cuando el cliente está cerca de activar la promo"
+                    helpText="Se muestra en la barra mientras se avanza hacia la promo"
                   />
                   <TextField
-                    label="Banner — Mensaje cuando la promo está activa"
+                    label="Mensaje cuando se activa la promo"
                     value={bannerMsgActive}
                     onChange={setBannerMsgActive}
                     autoComplete="off"
-                    helpText="Se muestra cuando la promo ya está activada"
+                    helpText="Se muestra en la barra cuando se alcanza la promoción"
                   />
                   <TextField
                     label="Modal — Título"

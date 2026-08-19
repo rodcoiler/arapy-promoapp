@@ -70,6 +70,9 @@ model Promotion {
   // Envío
   freeShipping       Boolean  @default(false)
 
+  // Barra Progresiva
+  enableProgressBar  Boolean  @default(true)
+
   // Mensajes configurables
   bannerMsgAlmost    String   @default("¡Agrega {MISSING} artículo(s) más y llévate 1 GRATIS!")
   bannerMsgActive    String   @default("🎉 ¡Promo activa! Tienes {COUNT} producto(s) GRATIS en tu carrito")
