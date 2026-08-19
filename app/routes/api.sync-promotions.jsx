@@ -261,11 +261,7 @@ export const action = async ({ request }) => {
                     }
                   },
                   value: {
-                    quantity: String(
-                      p.sameCollections !== false
-                        ? Math.max(1, (parseInt(p.buyQuantity) || 4) - (parseInt(p.getQuantity) || 1))
-                        : (parseInt(p.buyQuantity) || 4)
-                    )
+                    quantity: String(Math.max(1, (parseInt(p.buyQuantity) || 4) - (parseInt(p.getQuantity) || 1)))
                   }
                 },
                 customerGets: {
