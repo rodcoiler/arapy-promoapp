@@ -138,70 +138,94 @@ export const action = async ({ request }) => {
     console.error("Error setting metafield:", error);
   }
 
-  // 2. Create or Update Automatic App Discount to run our Shopify Function
-  let functionId = process.env.SHOPIFY_PROMOBOX_DISCOUNT_ID;
-  if (!functionId) {
-    try {
-      const funcRes = await admin.graphql(`
-        query {
-          shopifyFunctions(first: 10) {
-            edges {
-              node {
-                id
-                title
+  // 2. Create or Update Native Automatic BXGY Discount (Works on all Shopify Plans)
+  for (const p of activePromotions) {
+    if (p.ruleType === "NxM") {
+      try {
+        let targetCollectionGids = [];
+        let collections = [];
+        try {
+          collections = JSON.parse(p.collections || "[]");
+        } catch (e) {}
+
+        if (p.applyToAll || !collections.length) {
+          // Fetch all store collections
+          const colsRes = await admin.graphql(`query { collections(first: 50) { edges { node { id } } } }`);
+          const colsData = await colsRes.json();
+          targetCollectionGids = colsData?.data?.collections?.edges?.map(e => e.node.id) || [];
+        } else {
+          targetCollectionGids = collections;
+        }
+
+        if (targetCollectionGids.length > 0) {
+          const discountPercentage = p.discountType === "free" ? 1.0 : (p.discountValue ? p.discountValue / 100 : 1.0);
+
+          const bxgyRes = await admin.graphql(`
+            mutation discountAutomaticBxgyCreate($automaticBxgyDiscount: DiscountAutomaticBxgyInput!) {
+              discountAutomaticBxgyCreate(automaticBxgyDiscount: $automaticBxgyDiscount) {
+                automaticDiscountNode {
+                  id
+                  automaticDiscount {
+                    ... on DiscountAutomaticBxgy {
+                      title
+                      status
+                    }
+                  }
+                }
+                userErrors {
+                  field
+                  message
+                }
               }
             }
-          }
-        }
-      `);
-      const funcData = await funcRes.json();
-      const myFunc = funcData.data?.shopifyFunctions?.edges.find(e => 
-        e.node.title.includes("promobox-discount") || e.node.title.includes("PromoBox") || e.node.title === "t:name"
-      );
-      if (myFunc) {
-        functionId = myFunc.node.id;
-        console.log("Dynamically resolved Function ID:", functionId);
-      }
-    } catch (error) {
-      console.error("Error fetching shopifyFunctions:", error);
-    }
-  }
+          `, {
+            variables: {
+              automaticBxgyDiscount: {
+                title: `${p.name || "Promo 4x3"} (PromoBox)`,
+                startsAt: new Date().toISOString(),
+                customerBuys: {
+                  items: {
+                    collections: {
+                      add: targetCollectionGids
+                    }
+                  },
+                  value: {
+                    quantity: String(p.buyQuantity || 4)
+                  }
+                },
+                customerGets: {
+                  items: {
+                    collections: {
+                      add: targetCollectionGids
+                    }
+                  },
+                  value: {
+                    discountOnQuantity: {
+                      quantity: String(p.getQuantity || 1),
+                      effect: {
+                        percentage: discountPercentage
+                      }
+                    }
+                  }
+                },
+                usesPerOrderLimit: "1"
+              }
+            }
+          });
 
-  if (functionId) {
-    try {
-      // Blindly create the discount. If it already exists, it will just return a UserError which we ignore.
-      const createDiscountRes = await admin.graphql(`
-        mutation discountAutomaticAppCreate($automaticAppDiscount: DiscountAutomaticAppInput!) {
-          discountAutomaticAppCreate(automaticAppDiscount: $automaticAppDiscount) {
-            automaticAppDiscount {
-              discountId
+          const bxgyData = await bxgyRes.json();
+          if (bxgyData?.data?.discountAutomaticBxgyCreate?.userErrors?.length > 0) {
+            const errs = bxgyData.data.discountAutomaticBxgyCreate.userErrors;
+            if (!errs.some(e => e.message.includes("taken") || e.message.includes("already"))) {
+              console.error("BXGY userErrors:", errs);
             }
-            userErrors {
-              field
-              message
-            }
+          } else {
+            console.log("Successfully created/updated BXGY discount:", bxgyData?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id);
           }
         }
-      `, {
-        variables: {
-          automaticAppDiscount: {
-            title: "PromoBox NxM Discount",
-            functionId: functionId,
-            startsAt: new Date().toISOString(),
-          }
-        }
-      });
-      
-      const createDiscountData = await createDiscountRes.json();
-      if (createDiscountData.data?.discountAutomaticAppCreate?.userErrors?.length > 0) {
-        // If it says "title has already been taken" or similar, we just ignore it.
-        const errors = createDiscountData.data.discountAutomaticAppCreate.userErrors;
-        if (!errors.some(e => e.message.includes("taken") || e.message.includes("already"))) {
-          console.error("User Errors creating discount:", errors);
-        }
+      } catch (error) {
+        console.error("Error creating native BXGY discount:", error);
       }
-    } catch (error) {
-      console.error("Error managing automatic discount:", error);
     }
   }
 
