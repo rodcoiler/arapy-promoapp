@@ -3,6 +3,9 @@ client_id = "229dad93414ea254c2dd212687b831b3"
 application_url = "https://promoapp.proyecto.link"
 embedded = true
 
+[access_scopes]
+scopes = "write_products,read_products,write_discounts,read_discounts,read_customers,read_orders"
+
 [webhooks]
   api_version = "2025-01"
 

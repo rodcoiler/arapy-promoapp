@@ -205,86 +205,10 @@ export const action = async ({ request }) => {
     }
   }
 
-  // 3. Create Script Tag for storefront injection (auto-injects promobox-storefront.js)
-  const appUrl = process.env.SHOPIFY_APP_URL;
-  const scriptUrl = `${appUrl}/promobox-storefront.js`;
-
-  let scriptTagResult = null;
-  try {
-    // Check for existing script tags
-    const scriptTagsResponse = await admin.graphql(`
-      query {
-        scriptTags(first: 50) {
-          edges {
-            node {
-              id
-              src
-            }
-          }
-        }
-      }
-    `);
-    const scriptTagsData = await scriptTagsResponse.json();
-    const existingTags = scriptTagsData.data?.scriptTags?.edges || [];
-
-    let tagExistsAndCorrect = false;
-
-    for (const edge of existingTags) {
-      const tag = edge.node;
-      if (tag.src.includes("promobox") || tag.src.includes("your-app-url")) {
-        if (tag.src === scriptUrl) {
-          tagExistsAndCorrect = true;
-          scriptTagResult = tag;
-        } else {
-          // Delete incorrect or outdated tag
-          await admin.graphql(`
-            mutation scriptTagDelete($id: ID!) {
-              scriptTagDelete(id: $id) {
-                deletedScriptTagId
-              }
-            }
-          `, {
-            variables: { id: tag.id },
-          });
-        }
-      }
-    }
-
-    if (!tagExistsAndCorrect) {
-      // Create new script tag
-      const createResponse = await admin.graphql(`
-        mutation scriptTagCreate($input: ScriptTagInput!) {
-          scriptTagCreate(input: $input) {
-            scriptTag {
-              id
-              src
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `, {
-        variables: {
-          input: {
-            src: scriptUrl,
-            displayScope: "ALL",
-          },
-        },
-      });
-      const createData = await createResponse.json();
-      scriptTagResult = createData?.data?.scriptTagCreate?.scriptTag || null;
-    }
-  } catch (error) {
-    console.warn("Script tags might be deprecated in this API version or there was an error:", error);
-  }
-
   return json({
     success: true,
     promotionsSynced: activePromotions.length,
     metafield: metafieldData?.data?.metafieldsSet?.metafields?.[0] || null,
-    scriptTag: scriptTagResult,
   });
 };
 
