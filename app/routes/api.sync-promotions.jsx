@@ -9,8 +9,9 @@ import { getPromotions } from "../models/promotion.server";
  * 2. Stores promotions config as a Shop metafield (for Cart Transform Function)
  */
 export const action = async ({ request }) => {
-  const { session, admin } = await authenticate.admin(request);
-  const { shop } = session;
+  try {
+    const { session, admin } = await authenticate.admin(request);
+    const { shop } = session;
 
   const promotions = await getPromotions(shop);
   const activePromotions = promotions.filter((p) => p.active);
@@ -154,38 +155,8 @@ export const action = async ({ request }) => {
     console.error("Error setting metafield:", error);
   }
 
-  // 1.5 Delete ALL existing ScriptTags (migration to App Embeds)
-  try {
-    const scriptTagsRes = await admin.graphql(`
-      query {
-        scriptTags(first: 10) {
-          edges {
-            node {
-              id
-              src
-            }
-          }
-        }
-      }
-    `);
-    const scriptTagsData = await scriptTagsRes.json();
-    const scriptTagsEdges = scriptTagsData?.data?.scriptTags?.edges || [];
-    
-    for (const edge of scriptTagsEdges) {
-      if (edge.node.src.includes("promobox-storefront.js")) {
-        console.log("Deleting old ScriptTag:", edge.node.id);
-        await admin.graphql(`
-          mutation scriptTagDelete($id: ID!) {
-            scriptTagDelete(id: $id) {
-              deletedScriptTagId
-            }
-          }
-        `, { variables: { id: edge.node.id } });
-      }
-    }
-  } catch (error) {
-    console.error("Error deleting old ScriptTags:", error);
-  }
+  // Note: ScriptTags were removed in Shopify API 2024-04.
+  // We no longer attempt to delete them to avoid GraphQL API errors.
 
   // 2. Create or Update Native Automatic BXGY Discount (Works on all Shopify Plans)
   // Clean up any old test discounts with previous titles
@@ -340,11 +311,15 @@ export const action = async ({ request }) => {
     }
   }
 
-  return json({
-    success: true,
-    promotionsSynced: activePromotions.length,
-    metafield: metafieldData?.data?.metafieldsSet?.metafields?.[0] || null,
-  });
+    return json({
+      success: true,
+      promotionsSynced: activePromotions.length,
+      metafield: metafieldData?.data?.metafieldsSet?.metafields?.[0] || null,
+    });
+  } catch (globalError) {
+    console.error("Unhandled error in sync-promotions:", globalError);
+    return json({ error: globalError.message, stack: globalError.stack }, { status: 500 });
+  }
 };
 
 export const loader = async ({ request }) => {
