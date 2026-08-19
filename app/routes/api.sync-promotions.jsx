@@ -261,7 +261,11 @@ export const action = async ({ request }) => {
                     }
                   },
                   value: {
-                    quantity: String(p.buyQuantity || 4)
+                    quantity: String(
+                      p.sameCollections !== false
+                        ? Math.max(1, (parseInt(p.buyQuantity) || 4) - (parseInt(p.getQuantity) || 1))
+                        : (parseInt(p.buyQuantity) || 4)
+                    )
                   }
                 },
                 customerGets: {
@@ -272,7 +276,7 @@ export const action = async ({ request }) => {
                   },
                   value: {
                     discountOnQuantity: {
-                      quantity: String(p.getQuantity || 1),
+                      quantity: String(parseInt(p.getQuantity) || 1),
                       effect: {
                         percentage: discountPercentage
                       }
