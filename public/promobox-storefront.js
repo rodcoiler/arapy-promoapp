@@ -93,17 +93,12 @@
   function getEligibleItems(items, promo) {
     if (promo.applyToAll) return items;
 
-    const eligibleCollections = Array.isArray(promo.collections) 
-      ? promo.collections 
-      : JSON.parse(promo.collections || "[]");
-    if (!eligibleCollections.length) return items;
+    const eligibleProductIds = promo.productIds || [];
+    if (!eligibleProductIds.length) return [];
 
     return items.filter((item) => {
-      const itemCollections = item.collections || item.product_tags || [];
-      return itemCollections.some((col) => {
-        const colId = typeof col === "string" ? col : col.id || col;
-        return eligibleCollections.includes(colId);
-      });
+      const gid = `gid://shopify/Product/${item.product_id}`;
+      return eligibleProductIds.includes(gid);
     });
   }
 
@@ -112,17 +107,12 @@
       return getEligibleItems(items, promo);
     }
 
-    const eligibleCollections = Array.isArray(promo.getCollections)
-      ? promo.getCollections
-      : JSON.parse(promo.getCollections || "[]");
-    if (!eligibleCollections.length) return items;
+    const eligibleProductIds = promo.getProductIds || [];
+    if (!eligibleProductIds.length) return [];
 
     return items.filter((item) => {
-      const itemCollections = item.collections || item.product_tags || [];
-      return itemCollections.some((col) => {
-        const colId = typeof col === "string" ? col : col.id || col;
-        return eligibleCollections.includes(colId);
-      });
+      const gid = `gid://shopify/Product/${item.product_id}`;
+      return eligibleProductIds.includes(gid);
     });
   }
 

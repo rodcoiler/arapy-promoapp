@@ -73,6 +73,11 @@ export const action = async ({ request }) => {
       productIds = await resolveProductIdsForCollections(collections);
     }
 
+    let getProductIds = [];
+    if (!p.sameCollections && getCollections.length > 0) {
+      getProductIds = await resolveProductIdsForCollections(getCollections);
+    }
+
     resolvedPromotions.push({
       id: p.id,
       name: p.name,
@@ -85,6 +90,7 @@ export const action = async ({ request }) => {
       sameCollections: p.sameCollections ?? true,
       getCollections: getCollections,
       productIds: productIds, // Inject resolved product IDs for the backend Function
+      getProductIds: getProductIds,
       discountType: p.discountType,
       discountValue: p.discountValue,
       targetItem: p.targetItem,
