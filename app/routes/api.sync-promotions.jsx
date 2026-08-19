@@ -18,9 +18,9 @@ export const action = async ({ request }) => {
   // Helper to fetch all product IDs for given collections
   const resolveProductIdsForCollections = async (collectionIds) => {
     if (!collectionIds || collectionIds.length === 0) return [];
-    
+
     const productIds = new Set();
-    
+
     try {
       for (const colId of collectionIds) {
         // Basic pagination (first 250 products per collection for simplicity)
@@ -39,7 +39,7 @@ export const action = async ({ request }) => {
         `, {
           variables: { id: colId }
         });
-        
+
         const data = await res.json();
         const products = data?.data?.collection?.products?.edges || [];
         for (const edge of products) {
@@ -67,12 +67,12 @@ export const action = async ({ request }) => {
     } catch (e) {
       console.error("Error parsing getCollections JSON:", e);
     }
-    
+
     let productIds = [];
     if (!p.applyToAll && collections.length > 0) {
       productIds = await resolveProductIdsForCollections(collections);
     }
-    
+
     resolvedPromotions.push({
       id: p.id,
       name: p.name,
@@ -148,6 +148,45 @@ export const action = async ({ request }) => {
   }
 
   // 2. Create or Update Native Automatic BXGY Discount (Works on all Shopify Plans)
+  // Clean up any old test discounts with previous titles
+  try {
+    const existingDiscountsRes = await admin.graphql(`
+      query {
+        discountNodes(first: 20) {
+          edges {
+            node {
+              id
+              discount {
+                ... on DiscountAutomaticBxgy {
+                  title
+                }
+                ... on DiscountAutomaticApp {
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+    const existingData = await existingDiscountsRes.json();
+    const existingEdges = existingData?.data?.discountNodes?.edges || [];
+    for (const edge of existingEdges) {
+      const discountTitle = edge.node?.discount?.title;
+      if (discountTitle && (discountTitle.includes("PromoBox") || discountTitle === "Promo 4X3" || discountTitle === "product_discounts")) {
+        await admin.graphql(`
+          mutation discountAutomaticDelete($id: ID!) {
+            discountAutomaticDelete(id: $id) {
+              deletedAutomaticDiscountId
+            }
+          }
+        `, { variables: { id: edge.node.id } });
+      }
+    }
+  } catch (e) {
+    console.warn("Could not cleanup old discounts:", e);
+  }
+
   for (const p of activePromotions) {
     if (p.ruleType === "NxM") {
       try {
@@ -155,12 +194,12 @@ export const action = async ({ request }) => {
         let collections = [];
         try {
           collections = JSON.parse(p.collections || "[]");
-        } catch (e) {}
+        } catch (e) { }
 
         let getCollections = [];
         try {
           getCollections = JSON.parse(p.getCollections || "[]");
-        } catch (e) {}
+        } catch (e) { }
 
         // Fetch all store collections if needed
         let allStoreCollectionGids = null;
@@ -213,7 +252,7 @@ export const action = async ({ request }) => {
           `, {
             variables: {
               automaticBxgyDiscount: {
-                title: `${p.name || "Promo 4x3"} (PromoBox)`,
+                title: p.name || "Promo",
                 startsAt: new Date().toISOString(),
                 customerBuys: {
                   items: {
