@@ -58,8 +58,13 @@ export function run(input: RunInput): FunctionRunResult {
 
     const totalUnits = eligibleLines.reduce((acc, line) => acc + line.quantity, 0);
 
+    console.error(`[PromoBox Debug] Evaluating promo '${promo.name}': found ${totalUnits} eligible units. Required: ${promo.buyQuantity}`);
+
     // If we haven't reached the required buy quantity, continue to next promo
-    if (totalUnits < promo.buyQuantity) continue;
+    if (totalUnits < promo.buyQuantity) {
+      console.error(`[PromoBox Debug] Not enough units. Skipping promo.`);
+      continue;
+    }
 
     // Expand to individual units so we can sort them by price
     type Unit = { cartLineId: string; price: number };
@@ -114,6 +119,8 @@ export function run(input: RunInput): FunctionRunResult {
       value = { percentage: { value: 100 } };
     }
 
+    console.error(`[PromoBox Debug] Applying discount to targets: ${JSON.stringify(targets)} with value: ${JSON.stringify(value)}`);
+
     return {
       discountApplicationStrategy: DiscountApplicationStrategy.First,
       discounts: [
@@ -126,5 +133,6 @@ export function run(input: RunInput): FunctionRunResult {
     };
   }
 
+  console.error(`[PromoBox Debug] No promotions matched. Returning EMPTY_DISCOUNT.`);
   return EMPTY_DISCOUNT;
 };

@@ -162,9 +162,7 @@
     const isActive = currentPromoState === "active";
 
     const msg = isActive
-      ? (promo.bannerMsgActive || "").replace("{COUNT}", Math.abs(
-          getEligibleItems(cartData.items, promo).reduce((s, i) => s + i.quantity, 0) - promo.buyQuantity + promo.getQuantity
-        ))
+      ? (promo.bannerMsgActive || "").replace("{COUNT}", promo.getQuantity)
       : (promo.bannerMsgAlmost || "").replace("{MISSING}", missing);
 
     const accentColor = promo.accentColor || "#D9FF4F";
